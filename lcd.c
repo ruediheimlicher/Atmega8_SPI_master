@@ -396,6 +396,7 @@ void lcd_cls(void)
 	lcd_send_cmd();
 	
 	lcddelay_ms(2);			// dauert eine Weile, Wert ausprobiert
+   lcd_gotoxy(0,0);
 }
 
 

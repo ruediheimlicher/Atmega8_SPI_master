@@ -83,12 +83,6 @@ uint16_t loopCount2=0;
 #define BAUD 57600  //valid values:9600, 19200, 57600 kbits
 
 
-
-
-
-
-
-
 volatile uint8_t					Programmstatus=0x00;
 	uint8_t Tastenwert=0;
 	uint8_t TastaturCount=0;
@@ -99,6 +93,9 @@ volatile uint16_t					Manuellcounter=0; // Countr fuer Timeout
 
 volatile uint8_t data;
 volatile uint16_t	spiwaitcounter=0;
+
+//volatile char text[] = {'*','M','a','s','t','e','r','*'};
+char* text = "* Master *";
 
 //#define MAXSENSORS 5
 static uint8_t gSensorIDs[MAXSENSORS][OW_ROMCODE_SIZE];
@@ -395,7 +392,7 @@ int main (void)
 	lcd_initialize(LCD_FUNCTION_8x2, LCD_CMD_ENTRY_INC, LCD_CMD_ON);
 	lcd_puts("Guten Tag\0");
 	delay_ms(1000);
-   delay_ms(1000);
+   
 	lcd_cls();
    lcd_gotoxy(0,0);
 	lcd_puts("READY\0");
@@ -404,7 +401,7 @@ int main (void)
 	// DS1820 init-stuff end
    
    volatile char incoming=0;
-   
+   size_t poscounter=0;
    
    sei();
 #pragma mark while
@@ -416,32 +413,26 @@ int main (void)
       incoming = SPDR;
 		if (loopCount0 >=0x0F)
 		{
-			/*
-          uint8_t c;
-          volatile char rcv;
-          PORTB |= (1<<SS_n);      // Toggle SS_n to synchronize slave
-          PORTB &= ~(1<<SS_n);
-          
-          c = 0x0a;                                // Dummy tx value
-          SPDR = c;
-          while (!(SPSR & (1<<SPIF)));    // wait until Char is sent
-          rcv = SPDR;                            // Read the received char
-          
-
-          */
-			
 			LOOPLED_PORT ^= (1<<LOOPLED_PIN);
 			loopCount1++;
-         //incoming = SPDR;
-         SPDR = loopCount2;
+         //SPDR = loopCount2;
+         SPDR = text[poscounter];
          while(!(SPSR & (1<<SPIF)) && spiwaitcounter<0xFFF)
          {
             spiwaitcounter++;
          }
+         //incoming = SPDR;
          spiwaitcounter=0;
-
+         
 			if ((loopCount1 >0x001F) )//&& (!(Programmstatus & (1<<MANUELL))))
 			{
+            poscounter++;
+            if (poscounter >= strlen(text))
+            {
+               poscounter=0;
+               
+            }
+            
             loopCount2++;
 
             lcd_gotoxy(12,0);
