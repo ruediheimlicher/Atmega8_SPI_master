@@ -95,7 +95,7 @@ volatile uint8_t data;
 volatile uint16_t	spiwaitcounter=0;
 
 //volatile char text[] = {'*','M','a','s','t','e','r','*'};
-char* text = "* Master *";
+char* text = "* Master";
 
 //#define MAXSENSORS 5
 static uint8_t gSensorIDs[MAXSENSORS][OW_ROMCODE_SIZE];
@@ -395,7 +395,7 @@ int main (void)
    
 	lcd_cls();
    lcd_gotoxy(0,0);
-	lcd_puts("READY\0");
+	lcd_puts("MASTER\0");
 	
 	// DS1820 init-stuff begin
 	// DS1820 init-stuff end
@@ -416,6 +416,9 @@ int main (void)
 			LOOPLED_PORT ^= (1<<LOOPLED_PIN);
 			loopCount1++;
          //SPDR = loopCount2;
+         lcd_gotoxy(10,0);
+         lcd_putc(text[poscounter]);
+         
          SPDR = text[poscounter];
          while(!(SPSR & (1<<SPIF)) && spiwaitcounter<0xFFF)
          {
@@ -424,20 +427,20 @@ int main (void)
          incoming = SPDR;
          spiwaitcounter=0;
          
-			if ((loopCount1 >0x001F) )//&& (!(Programmstatus & (1<<MANUELL))))
+			if ((loopCount1 >0x000F) )//&& (!(Programmstatus & (1<<MANUELL))))
 			{
             poscounter++;
             if (poscounter >= strlen(text))
             {
                poscounter=0;
-               
             }
             
             loopCount2++;
 
-            lcd_gotoxy(12,0);
+            
+            lcd_gotoxy(14,0);
             lcd_putc(incoming);
-
+            
             
             lcd_gotoxy(18,0);
             lcd_puthex(loopCount2);
