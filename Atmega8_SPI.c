@@ -410,7 +410,7 @@ int main (void)
 		loopCount0 ++;
 		//_delay_ms(2);
 		//LOOPLED_PORT ^= (1<<LOOPLED_PIN);
-      incoming = SPDR;
+      //incoming = SPDR;
 		if (loopCount0 >=0x0F)
 		{
 			LOOPLED_PORT ^= (1<<LOOPLED_PIN);
@@ -421,7 +421,7 @@ int main (void)
          {
             spiwaitcounter++;
          }
-         //incoming = SPDR;
+         incoming = SPDR;
          spiwaitcounter=0;
          
 			if ((loopCount1 >0x001F) )//&& (!(Programmstatus & (1<<MANUELL))))
