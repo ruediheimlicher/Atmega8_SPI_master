@@ -44,6 +44,7 @@ uint16_t loopCount2=0;
 #define SPI_PIN      PINB
 #define SPI_DDR      DDRB
 
+#define SPI_CS       1
 #define SPI_SS       2
 
 #define SPI_MOSI     3  
@@ -93,10 +94,16 @@ volatile uint16_t					Manuellcounter=0; // Countr fuer Timeout
 
 volatile uint8_t data;
 volatile uint16_t	spiwaitcounter=0;
+volatile uint8_t textpos=0;
+volatile uint8_t inpos=0;
 
-//volatile char text[] = {'*','M','a','s','t','e','r','*'};
-char* text = "* Master";
+volatile uint8_t data_array[8];
+volatile uint8_t arraypos=0;
 
+volatile uint8_t inbuffer[16];
+volatile uint8_t outbuffer[16];
+//volatile char text[] = {'*','M','a','s','t','e','r','*','0'};
+volatile char* text = "0WXYZ*";
 //#define MAXSENSORS 5
 static uint8_t gSensorIDs[MAXSENSORS][OW_ROMCODE_SIZE];
 static int16_t gTempdata[MAXSENSORS]; // temperature times 10
@@ -294,8 +301,8 @@ void slaveinit(void)
 //	DDRB |= (1<<PORTB2);	//Bit 2 von PORT B als Ausgang fuer PWM
 //	PORTB &= ~(1<<PORTB2);	//LO
 
-	DDRB |= (1<<PORTB1);	//Bit 1 von PORT B als Ausgang fuer PWM
-	PORTB &= ~(1<<PORTB1);	//LO
+//	DDRB |= (1<<PORTB1);	//Bit 1 von PORT B als Ausgang fuer PWM
+//	PORTB &= ~(1<<PORTB1);	//LO
 	
 
 	//LCD
@@ -353,7 +360,10 @@ void SPI_Init(void)
    // Set MOSI and SCK output, all others input
    SPI_DDR &= ~(1<<SPI_MISO);
    SPI_DDR |= (1<<SPI_MOSI)|(1<<SPI_SCK)|(1<<SPI_SS);
-   
+   SPI_DDR |= (1<<SPI_SS);
+   //SPI_PORT |= (1<<SPI_SS); // HI
+   SPI_DDR |= (1<<SPI_CS); // Chip Select
+   SPI_PORT |= (1<<SPI_CS); // HI
    
    // Enable SPI, Master, set clock rate fck/16 
    SPCR =   (1<<SPE)|
@@ -401,7 +411,7 @@ int main (void)
 	// DS1820 init-stuff end
    
    volatile char incoming=0;
-   size_t poscounter=0;
+   volatile uint8_t outcounter=0;
    
    sei();
 #pragma mark while
@@ -416,44 +426,102 @@ int main (void)
 			LOOPLED_PORT ^= (1<<LOOPLED_PIN);
 			loopCount1++;
          //SPDR = loopCount2;
-         lcd_gotoxy(10,0);
-         lcd_putc(text[poscounter]);
          
-         SPDR = text[poscounter];
-         while(!(SPSR & (1<<SPIF)) && spiwaitcounter<0xFFF)
-         {
-            spiwaitcounter++;
-         }
-         incoming = SPDR;
-         spiwaitcounter=0;
-         
-			if ((loopCount1 >0x000F) )//&& (!(Programmstatus & (1<<MANUELL))))
+  			if ((loopCount1 >0x0002F) )//&& (!(Programmstatus & (1<<MANUELL))))
 			{
-            poscounter++;
-            if (poscounter >= strlen(text))
+            SPI_PORT &= ~(1<<SPI_CS); // SS LO, Start
+            
+            //_delay_us(100);
+            uint8_t outindex=0;
+            textpos=0;
+            inbuffer[0] = '\0';
+            //outbuffer[0] = '\0';
+            
+            text[0] = 0x30+(outcounter & 0x07);
+            for (outindex=0;outindex < strlen(text);outindex++)
             {
-               poscounter=0;
+               SPDR = text[outindex];
+               while(!(SPSR & (1<<SPIF)) && spiwaitcounter<0xFFF)
+               {
+                  spiwaitcounter++;
+               }
+               spiwaitcounter=0;
+               incoming = SPDR;
+               inbuffer[outindex] = incoming;
+               outbuffer[outindex] = text[outindex];
+               
             }
             
-            loopCount2++;
+            inbuffer[outindex] = '\0';
+            //outbuffer[outindex] = '\0';
+            //char rest = SPDR;
+            SPI_PORT |= (1<<SPI_CS); // SS HI End
 
             
-            lcd_gotoxy(14,0);
-            lcd_putc(incoming);
+            lcd_gotoxy(8,0);
+            lcd_putc('i');
+            lcd_putc(' ');
+            lcd_puts((char*)inbuffer);
             
+            lcd_gotoxy(8,1);
+            lcd_putc('o');
+             lcd_putc(' ');
+            lcd_puts((char*)outbuffer);
             
-            lcd_gotoxy(18,0);
-            lcd_puthex(loopCount2);
-            //LOOPLED_PORT ^= (1<<LOOPLED_PIN);
-				
-					//LOOPLED_PORT ^= (1<<LOOPLED_PIN);
-					loopCount1=0;
+            outcounter++;
+            if (outcounter > 9)
+            {
+               //outcounter =0;
+            }
+            
             /*
-				if ((SPSR & (1<<SPIF)) > 0) // checks to see if the SPI bit is clear
+            if (textpos == 0)
             {
                
-               data='a'; // send the data
+               SPI_PORT &= ~(1<<SPI_SS); // SS LO
             }
+            
+            SPDR = text[textpos];
+            while(!(SPSR & (1<<SPIF)) && spiwaitcounter<0xFFF)
+            {
+               spiwaitcounter++;
+            }
+            incoming = SPDR;
+            spiwaitcounter=0;
+            
+            textpos++;
+            if (textpos >= strlen(text))
+            {
+               textpos=0;
+               SPI_PORT |= (1<<SPI_SS); // SS HI
+               //SPI_PORT &= ~(1<<SPI_SS); // SS LO
+            }
+            */
+            loopCount2++;
+            /*
+            lcd_gotoxy(inpos,1);
+            
+            lcd_putc(incoming);
+            inpos++;
+            if (inpos >= 19)
+            {
+               inpos=0;
+            }
+            */
+            
+            
+            //lcd_gotoxy(18,0);
+            //lcd_puthex(loopCount2);
+            //LOOPLED_PORT ^= (1<<LOOPLED_PIN);
+				
+            //LOOPLED_PORT ^= (1<<LOOPLED_PIN);
+            loopCount1=0;
+            /*
+             if ((SPSR & (1<<SPIF)) > 0) // checks to see if the SPI bit is clear
+             {
+             
+             data='a'; // send the data
+             }
              */
             //char incoming = SPI_get_put_char('A');
             
@@ -462,69 +530,69 @@ int main (void)
             
 				// DS1820 loop-stuff begin
             /*
-				start_temp_meas();
-				delay_ms(800);
-				read_temp_meas();
-				
-				//Sensor 1
-				lcd_gotoxy(0,1);
-				lcd_puts("1:\0");
-				if (gTempdata[0]/10>=100)
-				{
-					lcd_gotoxy(1,1);
-					lcd_putint((gTempdata[0]/10));
-				}
-				else
-				{
-					lcd_gotoxy(2,1);
-					lcd_putint2((gTempdata[0]/10));
-				}
-				
-				lcd_putc('.');
-				lcd_putint1(gTempdata[0]%10);
-				
-				// Sensor 2
-				lcd_gotoxy(7,1);
-				lcd_puts("2:\0");
-				if (gTempdata[1]/10>=100)
-				{
-					lcd_gotoxy(8,1);
-					lcd_putint((gTempdata[1]/10));
-				}
-				else
-				{
-					lcd_gotoxy(9,1);
-					lcd_putint2((gTempdata[1]/10));
-				}
-				
-				lcd_putc('.');
-				lcd_putint1(gTempdata[1]%10);
-				
-				// Sensor 3
-				lcd_gotoxy(14,1);
-				lcd_puts("3:\0");
-				if (gTempdata[2]/10>=100)
-				{
-					lcd_gotoxy(15,1);
-					lcd_putint((gTempdata[2]/10));
-				}
-				else
-				{
-					lcd_gotoxy(16,1);
-					lcd_putint2((gTempdata[2]/10));
-				}
-				
-				lcd_putc('.');
-				lcd_putint1(gTempdata[2]%10);
-				
-				
-				
-				lcd_gotoxy(15,0);
-				lcd_puts("   \0");
-				lcd_gotoxy(15,0);
-				lcd_puthex(gTemp_measurementstatus);
-
-				*/
+             start_temp_meas();
+             delay_ms(800);
+             read_temp_meas();
+             
+             //Sensor 1
+             lcd_gotoxy(0,1);
+             lcd_puts("1:\0");
+             if (gTempdata[0]/10>=100)
+             {
+             lcd_gotoxy(1,1);
+             lcd_putint((gTempdata[0]/10));
+             }
+             else
+             {
+             lcd_gotoxy(2,1);
+             lcd_putint2((gTempdata[0]/10));
+             }
+             
+             lcd_putc('.');
+             lcd_putint1(gTempdata[0]%10);
+             
+             // Sensor 2
+             lcd_gotoxy(7,1);
+             lcd_puts("2:\0");
+             if (gTempdata[1]/10>=100)
+             {
+             lcd_gotoxy(8,1);
+             lcd_putint((gTempdata[1]/10));
+             }
+             else
+             {
+             lcd_gotoxy(9,1);
+             lcd_putint2((gTempdata[1]/10));
+             }
+             
+             lcd_putc('.');
+             lcd_putint1(gTempdata[1]%10);
+             
+             // Sensor 3
+             lcd_gotoxy(14,1);
+             lcd_puts("3:\0");
+             if (gTempdata[2]/10>=100)
+             {
+             lcd_gotoxy(15,1);
+             lcd_putint((gTempdata[2]/10));
+             }
+             else
+             {
+             lcd_gotoxy(16,1);
+             lcd_putint2((gTempdata[2]/10));
+             }
+             
+             lcd_putc('.');
+             lcd_putint1(gTempdata[2]%10);
+             
+             
+             
+             lcd_gotoxy(15,0);
+             lcd_puts("   \0");
+             lcd_gotoxy(15,0);
+             lcd_puthex(gTemp_measurementstatus);
+             
+             */
 				
 				// DS1820 loop-stuff end
 				
